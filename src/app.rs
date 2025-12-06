@@ -85,23 +85,26 @@ fn HomePage() -> impl IntoView {
     let cardsfn = move || cards.get().transpose().ok().flatten().unwrap_or_default();
 
     view! {
-        <div>
+        <div class="grid grid-cols-4 gap-5">
             <For
                 each=cardsfn
                 key=|x| x.id
                 let(card)
                 >
-                    <ul>
-                        <For
-                            each=move || card.kv.clone()
-                            key=|x| x.key.clone()
-                            let(kv)
-                        >
-                            <li>
-                                <span>{kv.key}</span> : <span>{kv.value}</span>
-                            </li>
-                        </For>
-                    </ul>
+                    <div class="border-2">
+                        <h2>"كارت ضاحية"</h2>
+                        <ul>
+                            <For
+                                each=move || card.kv.clone()
+                                key=|x| x.key.clone()
+                                let(kv)
+                            >
+                                <li>
+                                    <span class="w-min">{kv.key}</span> : <span class="w-min">{kv.value}</span>
+                                </li>
+                            </For>
+                        </ul>
+                    </div>
             </For>
         </div>
     }
