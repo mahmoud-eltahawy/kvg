@@ -17,7 +17,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <HydrationScripts options/>
                 <MetaTags/>
             </head>
-            <body>
+            <body dir="rtl">
                 <App/>
             </body>
         </html>
@@ -39,7 +39,7 @@ pub fn App() -> impl IntoView {
 
         // content for this welcome page
         <Router>
-            <main>
+            <main class="m-4">
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=StaticSegment("") view=HomePage/>
                 </Routes>
@@ -65,10 +65,10 @@ async fn get_cards() -> Result<Vec<Card>, ServerFnError> {
     let mut cards = Vec::new();
     for i in 0..100 {
         let mut kvs = Vec::new();
-        for j in 0..7 {
+        for j in 100..107 {
             kvs.push(Kv {
-                key: format!("key {j}"),
-                value: format!("value {j}"),
+                key: format!("عنوان {j}"),
+                value: format!("قيمة {j}"),
             })
         }
         cards.push(Card { id: i, kv: kvs })
@@ -91,16 +91,16 @@ fn HomePage() -> impl IntoView {
                 key=|x| x.id
                 let(card)
                 >
-                    <div class="border-2">
-                        <h2>"كارت ضاحية"</h2>
+                    <div class="border-sky-500 border-5 rounded-xl p-2 text-3xl text-center">
+                        <h2 class="font-bold">"كارت ضاحية"</h2>
                         <ul>
                             <For
                                 each=move || card.kv.clone()
                                 key=|x| x.key.clone()
-                                let(kv)
+                                let(Kv { key, value })
                             >
                                 <li>
-                                    <span class="w-min">{kv.key}</span> : <span class="w-min">{kv.value}</span>
+                                    {format!("{key} : {value}")}
                                 </li>
                             </For>
                         </ul>
