@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
@@ -61,18 +63,43 @@ struct Kv {
 }
 
 #[server]
-async fn get_cards() -> Result<Vec<Card>, ServerFnError> {
+async fn get_cards(
+    path: PathBuf,
+    sheet: String,
+    indexs: Vec<usize>,
+) -> Result<Vec<Card>, ServerFnError> {
+    use calamine::{open_workbook, Data, DeError, RangeDeserializerBuilder, Reader, Xlsx};
+
+    let mut workbook: Xlsx<_> = open_workbook(&path)?;
+    let range = workbook.worksheet_range(&sheet)?;
+
+    let mut iter = RangeDeserializerBuilder::new()
+        .has_headers(false)
+        .from_range(&range)?;
+
+    let headers = iter
+        .next()
+        .unwrap_or(Err(DeError::HeaderNotFound(String::from(
+            "Error : first row should contain headers",
+        ))))?;
+
     let mut cards = Vec::new();
-    for i in 0..100 {
+    for (i, row) in iter.enumerate() {
         let mut kvs = Vec::new();
-        for j in 100..107 {
-            kvs.push(Kv {
-                key: format!("عنوان {j}"),
-                value: format!("قيمة {j}"),
-            })
+        let row: Vec<Data> = row?;
+        for index in indexs.iter() {
+            let header = headers[*index].to_string();
+            let value = row[*index].to_string();
+            if !header.is_empty() && !value.is_empty() {
+                kvs.push(Kv {
+                    key: header,
+                    value: value,
+                });
+            }
         }
-        cards.push(Card { id: i, kv: kvs })
+        cards.push(Card { id: i, kv: kvs });
     }
+
     Ok(cards)
 }
 
@@ -80,7 +107,13 @@ async fn get_cards() -> Result<Vec<Card>, ServerFnError> {
 #[component]
 fn HomePage() -> impl IntoView {
     // Creates a reactive value to update the button
-    let cards = LocalResource::new(get_cards);
+    let cards = LocalResource::new(|| {
+        get_cards(
+            PathBuf::from("demo_excel.xlsx"),
+            String::from("Sheet1"),
+            vec![2, 3, 5],
+        )
+    });
 
     let cardsfn = move || cards.get().transpose().ok().flatten().unwrap_or_default();
 
