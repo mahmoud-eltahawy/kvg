@@ -1,12 +1,14 @@
-use std::path::PathBuf;
+use std::{num::NonZero, path::PathBuf};
 
+use cards::{Cards, CardsServerProps};
 use leptos::prelude::*;
 use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
 use leptos_router::{
     components::{Route, Router, Routes},
     StaticSegment,
 };
-use serde::{Deserialize, Serialize};
+
+mod cards;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
@@ -51,99 +53,18 @@ pub fn App() -> impl IntoView {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
-struct Card {
-    row_index: usize,
-    kv: Vec<Kv>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-struct Kv {
-    key: String,
-    value: String,
-}
-
-#[server]
-async fn get_cards(
-    path: PathBuf,
-    sheet: String,
-    indexs: Vec<usize>,
-) -> Result<Vec<Card>, ServerFnError> {
-    use calamine::{open_workbook, Data, DeError, RangeDeserializerBuilder, Reader, Xlsx};
-
-    let mut workbook: Xlsx<_> = open_workbook(&path)?;
-    let range = workbook.worksheet_range(&sheet)?;
-
-    let mut iter = RangeDeserializerBuilder::new()
-        .has_headers(false)
-        .from_range(&range)?;
-
-    let headers = iter
-        .next()
-        .unwrap_or(Err(DeError::HeaderNotFound(String::from(
-            "Error : first row should contain headers",
-        ))))?;
-
-    let mut cards = Vec::new();
-    for (i, row) in iter.enumerate() {
-        let mut kvs = Vec::new();
-        let row: Vec<Data> = row?;
-        for index in indexs.iter() {
-            let header = headers[*index].to_string();
-            let value = row[*index].to_string();
-            if !header.is_empty() && !value.is_empty() {
-                kvs.push(Kv {
-                    key: header,
-                    value: value,
-                });
-            }
-        }
-        cards.push(Card {
-            row_index: i,
-            kv: kvs,
-        });
-    }
-
-    Ok(cards)
-}
-
-/// Renders the home page of your application.
 #[component]
 fn HomePage() -> impl IntoView {
-    // Creates a reactive value to update the button
-    let cards = LocalResource::new(|| {
-        get_cards(
-            PathBuf::from("demo_excel.xlsx"),
-            String::from("Sheet1"),
-            vec![0, 2, 3, 5],
-        )
-    });
+    let title = "كارت ضاحية".to_string();
 
-    let cardsfn = move || cards.get().transpose().ok().flatten().unwrap_or_default();
+    let csp = CardsServerProps {
+        title_row_index: NonZero::new(1),
+        path: PathBuf::from("demo_excel.xlsx"),
+        sheet: String::from("Sheet1"),
+        columns_indexes: vec![0, 2, 3, 5],
+    };
 
     view! {
-        <div class="grid grid-cols-3 gap-5">
-            <For
-                each=cardsfn
-                key=|x| x.row_index
-                let(Card { row_index:_, kv })
-                >
-                    <div class="border-sky-500 border-5 rounded-xl p-2 text-xl text-center">
-                        <h2 class="font-bold">"كارت ضاحية"</h2>
-                        <dl class="divide-y divide-white/10">
-                            <For
-                                each=move || kv.clone()
-                                key=|x| x.key.clone()
-                                let(Kv { key, value })
-                            >
-                                 <div class="flex">
-                                    <dt class="px-3 border-l-2 border-dotted">{key}</dt>
-                                    <dd class="grow">{value}</dd>
-                                </div>
-                            </For>
-                        </dl>
-                    </div>
-            </For>
-        </div>
+        <Cards title csp/>
     }
 }
