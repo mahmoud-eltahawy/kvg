@@ -115,32 +115,33 @@ fn HomePage() -> impl IntoView {
         get_cards(
             PathBuf::from("demo_excel.xlsx"),
             String::from("Sheet1"),
-            vec![2, 3, 5],
+            vec![0, 2, 3, 5],
         )
     });
 
     let cardsfn = move || cards.get().transpose().ok().flatten().unwrap_or_default();
 
     view! {
-        <div class="grid grid-cols-4 gap-5">
+        <div class="grid grid-cols-3 gap-5">
             <For
                 each=cardsfn
                 key=|x| x.row_index
                 let(Card { row_index:_, kv })
                 >
-                    <div class="border-sky-500 border-5 rounded-xl p-2 text-3xl text-center">
+                    <div class="border-sky-500 border-5 rounded-xl p-2 text-xl text-center">
                         <h2 class="font-bold">"كارت ضاحية"</h2>
-                        <ul>
+                        <dl class="divide-y divide-white/10">
                             <For
                                 each=move || kv.clone()
                                 key=|x| x.key.clone()
                                 let(Kv { key, value })
                             >
-                                <li>
-                                    {format!("{key} : {value}")}
-                                </li>
+                                 <div class="flex">
+                                    <dt class="px-3 border-l-2 border-dotted">{key}</dt>
+                                    <dd class="grow">{value}</dd>
+                                </div>
                             </For>
-                        </ul>
+                        </dl>
                     </div>
             </For>
         </div>
