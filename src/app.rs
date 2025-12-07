@@ -37,11 +37,12 @@ pub fn App() -> impl IntoView {
         <Stylesheet id="leptos" href="/pkg/kvg.css"/>
 
         // sets the document title
-        <Title text="Welcome to Leptos"/>
+        <Title text="kvg"/>
 
         // content for this welcome page
         <Router>
             <main class="m-4">
+                <p class="text-xs text-left p-3 print:hidden">made by mahmoud eltahawy</p>
                 <Routes fallback=|| "Page not found.".into_view()>
                     <Route path=StaticSegment("") view=HomePage/>
                 </Routes>
@@ -52,7 +53,7 @@ pub fn App() -> impl IntoView {
 
 #[derive(Serialize, Deserialize, Clone)]
 struct Card {
-    id: usize,
+    row_index: usize,
     kv: Vec<Kv>,
 }
 
@@ -97,7 +98,10 @@ async fn get_cards(
                 });
             }
         }
-        cards.push(Card { id: i, kv: kvs });
+        cards.push(Card {
+            row_index: i,
+            kv: kvs,
+        });
     }
 
     Ok(cards)
@@ -121,14 +125,14 @@ fn HomePage() -> impl IntoView {
         <div class="grid grid-cols-4 gap-5">
             <For
                 each=cardsfn
-                key=|x| x.id
-                let(card)
+                key=|x| x.row_index
+                let(Card { row_index:_, kv })
                 >
                     <div class="border-sky-500 border-5 rounded-xl p-2 text-3xl text-center">
                         <h2 class="font-bold">"كارت ضاحية"</h2>
                         <ul>
                             <For
-                                each=move || card.kv.clone()
+                                each=move || kv.clone()
                                 key=|x| x.key.clone()
                                 let(Kv { key, value })
                             >
