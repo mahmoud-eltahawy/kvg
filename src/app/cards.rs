@@ -53,7 +53,7 @@ pub struct CardsServerProps {
     pub title_row_index: Option<NonZeroUsize>,
     pub path: PathBuf,
     pub sheet: String,
-    pub columns_indexes: Vec<usize>,
+    pub columns_indexs: Vec<usize>,
 }
 
 #[server]
@@ -62,9 +62,9 @@ async fn get_cards(reqs: CardsServerProps) -> Result<Vec<Card>, ServerFnError> {
         title_row_index,
         path,
         sheet,
-        columns_indexes,
+        columns_indexs,
     } = reqs;
-    use calamine::{open_workbook, Data, DeError, RangeDeserializerBuilder, Reader, Xlsx};
+    use calamine::{Data, DeError, RangeDeserializerBuilder, Reader, Xlsx, open_workbook};
 
     let mut workbook: Xlsx<_> = open_workbook(&path)?;
     let range = workbook.worksheet_range(&sheet)?;
@@ -85,7 +85,7 @@ async fn get_cards(reqs: CardsServerProps) -> Result<Vec<Card>, ServerFnError> {
     for (i, row) in iter.enumerate() {
         let mut kvs = Vec::new();
         let row: Vec<Data> = row?;
-        for index in columns_indexes.iter() {
+        for index in columns_indexs.iter() {
             let header = headers[*index].to_string();
             let value = row[*index].to_string();
             if !header.is_empty() && !value.is_empty() {

@@ -1,19 +1,20 @@
-use std::{num::NonZero, path::PathBuf};
-
 use cards::{Cards, CardsServerProps};
 use leptos::prelude::*;
-use leptos_meta::{provide_meta_context, MetaTags, Stylesheet, Title};
+use leptos_meta::{MetaTags, Stylesheet, Title, provide_meta_context};
 use leptos_router::{
-    components::{Route, Router, Routes},
     StaticSegment,
+    components::{Route, Router, Routes},
 };
 
+use crate::app::xlsx_form::XlsxForm;
+
 mod cards;
+mod xlsx_form;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
     view! {
         <!DOCTYPE html>
-        <html lang="en">
+        <html dir="rtl" lang="en">
             <head>
                 <meta charset="utf-8"/>
                 <meta name="viewport" content="width=device-width, initial-scale=1"/>
@@ -21,7 +22,7 @@ pub fn shell(options: LeptosOptions) -> impl IntoView {
                 <HydrationScripts options/>
                 <MetaTags/>
             </head>
-            <body dir="rtl">
+            <body>
                 <App/>
             </body>
         </html>
@@ -55,16 +56,18 @@ pub fn App() -> impl IntoView {
 
 #[component]
 fn HomePage() -> impl IntoView {
-    let title = "كارت ضاحية".to_string();
+    let csp = RwSignal::new(None::<CardsServerProps>);
+    let title = RwSignal::new("كارت ضاحية".to_string());
 
-    let csp = CardsServerProps {
-        title_row_index: NonZero::new(1),
-        path: PathBuf::from("demo_excel.xlsx"),
-        sheet: String::from("Sheet1"),
-        columns_indexes: vec![0, 2, 3, 5],
+    let xlsx_form = move || {
+        view! {
+            <XlsxForm title csp/>
+        }
     };
 
     view! {
-        <Cards title csp/>
+        <ShowLet some=csp let:csp fallback=xlsx_form>
+            <Cards title=title.get() csp/>
+        </ShowLet>
     }
 }
