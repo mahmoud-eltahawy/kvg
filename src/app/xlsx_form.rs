@@ -33,7 +33,7 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
         <dl class="border-sky-500 border-5 rounded-xl p-2 m-2 text-xl text-center">
             <CardTitle title/>
             <XlsxPath path/>
-            <SheetName sheet/>
+            <SheetName sheet path/>
             <TitleRowIndex index=title_row_index/>
             <ColumnsIndexs indexs=columns_indexs/>
             <button on:click=on_submit>تمام</button>
@@ -83,21 +83,58 @@ fn ColumnsIndexs(indexs: RwSignal<Vec<usize>>) -> impl IntoView {
     }
 }
 
+#[server]
+async fn sheets_names(path: Option<PathBuf>) -> Result<Vec<String>, ServerFnError> {
+    use calamine::{Reader, Xlsx, open_workbook};
+    let Some(path) = path else {
+        return Ok(Vec::new());
+    };
+    let workbook: Xlsx<_> = open_workbook(&path)?;
+    Ok(workbook.sheet_names())
+}
+
 #[component]
-fn SheetName(sheet: RwSignal<String>) -> impl IntoView {
+fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl IntoView {
+    let sheets_names_res = Resource::new(move || path.get(), sheets_names);
+    let style = move || {
+        if path.read().is_none() {
+            "color:red;"
+        } else {
+            ""
+        }
+    };
+
+    let sheets_names = move || {
+        sheets_names_res
+            .get()
+            .transpose()
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    };
     view! {
         <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">اسم الشييت</dd>
         <dt>
-            <input
-                type="text"
+            <select
+                style={style}
                 class="border-2 w-3/6 rounded-lg p-2 text-center"
-                on:input:target=move |ev| {
+                on:change:target=move |ev| {
                     let value =ev.target().value();
                     if !value.is_empty() {
                         sheet.set(value.trim().to_string());
                     }
                 }
-            />
+            >
+                <Suspense>
+                <For
+                    each=sheets_names
+                    key=|x| x.clone()
+                    let(name)
+                >
+                    <option value={name.clone()}>{name.clone()}</option>
+                </For>
+                </Suspense>
+            </select>
         </dt>
     }
 }
@@ -216,9 +253,9 @@ fn XlsxPath(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     Effect::new(move || {
         let input_path = input_path.get_untracked();
 
-        let is_excel = input_path.extension().is_some_and(|x| {
-            ["xls", "xlsx", "xlsm", "xlsb", "xla", "xlam"].contains(&x.to_str().unwrap_or(""))
-        });
+        let is_excel = input_path
+            .extension()
+            .is_some_and(|x| ["xls", "xlsx", "xlsb", "ods"].contains(&x.to_str().unwrap_or("")));
 
         if matches!(input_path_exists(), PathExisting::Exists(_)) && is_excel {
             path.set(Some(input_path));
