@@ -114,28 +114,30 @@ fn ColumnsIndexs(
             .collect::<Vec<_>>()
     };
     view! {
-        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">مسلسلات الاعمدة</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">الاعمدة</dd>
         <dt>
-            <dl class="flex gap-4">
+            <dl class="flex gap-4 place-content-center">
                 <Suspense>
                     <For
                         each=headers
                         key=|x| x.1.clone()
                         let((index,header))
                     >
-                        <dd>{header}</dd>
-                        <dt>
-                            <input
-                                type="checkbox"
-                                class="border-2 w-4/6 rounded-lg p-2 text-center"
-                                value={index}
-                                on:change:target=move |ev| {
-                                    if ev.target().checked() {
-                                        indexs.write().push(ev.target().value().parse().unwrap());
-                                    };
-                                }
-                            />
-                        </dt>
+                        <div class="grid grid-cols-1 gap-4 border-2 rounded-xl p-3 m-2">
+                            <dd>{header}</dd>
+                            <dt>
+                                <input
+                                    type="checkbox"
+                                    class="w-5 h-5"
+                                    value={index}
+                                    on:change:target=move |ev| {
+                                        if ev.target().checked() {
+                                            indexs.write().push(ev.target().value().parse().unwrap());
+                                        };
+                                    }
+                                />
+                            </dt>
+                        </div>
                     </For>
                 </Suspense>
             </dl>
