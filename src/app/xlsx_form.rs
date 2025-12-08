@@ -30,7 +30,7 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
         };
     };
     view! {
-        <dl>
+        <dl class="border-sky-500 border-5 rounded-xl p-2 m-2 text-xl text-center">
             <CardTitle title/>
             <XlsxPath path/>
             <SheetName sheet/>
@@ -44,11 +44,11 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
 #[component]
 fn CardTitle(title: RwSignal<String>) -> impl IntoView {
     view! {
-        <dd>عنوان الكارت</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">عنوان الكارت</dd>
         <dt>
             <input
                 type="text"
-                class="border-2"
+                class="border-2 w-3/6 rounded-lg p-2 text-center"
                 on:input:target=move |ev| {
                     let value =ev.target().value();
                     title.set(value.trim().to_string());
@@ -62,12 +62,12 @@ fn CardTitle(title: RwSignal<String>) -> impl IntoView {
 fn ColumnsIndexs(indexs: RwSignal<Vec<usize>>) -> impl IntoView {
     let style = RwSignal::new("");
     view! {
-        <dd>مسلسلات الاعمدة</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">مسلسلات الاعمدة</dd>
         <dt>
             <input
                 type="text"
                 style=style
-                class="border-2"
+                class="border-2 w-4/6 rounded-lg p-2 text-center"
                 on:input:target=move |ev| {
                     let value =ev.target().value();
                     let value = value.split(',').map(|x| x.trim().parse::<usize>()).collect::<Vec<_>>();
@@ -86,11 +86,11 @@ fn ColumnsIndexs(indexs: RwSignal<Vec<usize>>) -> impl IntoView {
 #[component]
 fn SheetName(sheet: RwSignal<String>) -> impl IntoView {
     view! {
-        <dd>اسم الشييت</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">اسم الشييت</dd>
         <dt>
             <input
                 type="text"
-                class="border-2"
+                class="border-2 w-3/6 rounded-lg p-2 text-center"
                 on:input:target=move |ev| {
                     let value =ev.target().value();
                     if !value.is_empty() {
@@ -112,12 +112,12 @@ fn TitleRowIndex(index: RwSignal<Option<NonZeroUsize>>) -> impl IntoView {
         "color:red;"
     };
     view! {
-        <dd>مسلسل صف العناوين</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">مسلسل صف العناوين</dd>
         <dt>
             <input
                 type="text"
                 style=style
-                class="border-2"
+                class="border-2 w-2/6 rounded-lg p-2 text-center"
                 placeholder="1"
                 on:input:target=move |ev| {
                     let value =ev.target().value().parse::<NonZeroUsize>();
@@ -229,12 +229,12 @@ fn XlsxPath(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     });
 
     view! {
-        <dd>موقع ملف الاكسل</dd>
+        <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">موقع ملف الاكسل</dd>
         <dt>
             <input
                 dir="ltr"
                 type="text"
-                class="border-2"
+                class="border-2 w-5/6 rounded-lg p-3 text-center"
                 list="paths"
                 style=style
                 on:input:target=move |ev| {
