@@ -34,7 +34,7 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
             <CardTitle title/>
             <XlsxPath path/>
             <SheetName sheet path/>
-            <TitleRowIndex index=title_row_index/>
+            <TitleRowIndex path sheetname=sheet index=title_row_index/>
             <ColumnsIndexs indexs=columns_indexs/>
             <button on:click=on_submit>تمام</button>
         </dl>
@@ -120,11 +120,11 @@ fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl I
                 class="border-2 w-3/6 rounded-lg p-2 text-center"
                 on:change:target=move |ev| {
                     let value =ev.target().value();
-                    if !value.is_empty() {
-                        sheet.set(value.trim().to_string());
-                    }
+                    sheet.set( value.trim().to_string());
+                    log!("hello ");
                 }
             >
+                <option>"لا يكن"</option>
                 <Suspense>
                 <For
                     each=sheets_names
@@ -139,8 +139,27 @@ fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl I
     }
 }
 
+#[server]
+async fn rows_height(args: (Option<PathBuf>, String)) -> Result<usize, ServerFnError> {
+    use calamine::{Reader, Xlsx, open_workbook};
+    let (path, sheetname) = args;
+    let (Some(path), false) = (path, sheetname.is_empty()) else {
+        return Ok(0);
+    };
+    let mut workbook: Xlsx<_> = open_workbook(&path)?;
+    let Ok(range) = workbook.worksheet_range(&sheetname) else {
+        println!("sheet {sheetname} range is empty");
+        return Ok(0);
+    };
+    Ok(dbg!(range.height()))
+}
+
 #[component]
-fn TitleRowIndex(index: RwSignal<Option<NonZeroUsize>>) -> impl IntoView {
+fn TitleRowIndex(
+    index: RwSignal<Option<NonZeroUsize>>,
+    path: RwSignal<Option<PathBuf>>,
+    sheetname: RwSignal<String>,
+) -> impl IntoView {
     let valid = RwSignal::new(true);
     let style = move || {
         if valid.get() {
@@ -148,15 +167,15 @@ fn TitleRowIndex(index: RwSignal<Option<NonZeroUsize>>) -> impl IntoView {
         };
         "color:red;"
     };
+    let rows_height_res = Resource::new(move || (path.get(), sheetname.get()), rows_height);
+    let rows_height = move || rows_height_res.get().transpose().ok().flatten();
     view! {
         <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">مسلسل صف العناوين</dd>
         <dt>
-            <input
-                type="text"
-                style=style
+            <select
+                style={style}
                 class="border-2 w-2/6 rounded-lg p-2 text-center"
-                placeholder="1"
-                on:input:target=move |ev| {
+                on:change:target=move |ev| {
                     let value =ev.target().value().parse::<NonZeroUsize>();
                     match value {
                         Ok(value) => {
@@ -169,7 +188,19 @@ fn TitleRowIndex(index: RwSignal<Option<NonZeroUsize>>) -> impl IntoView {
                         },
                     };
                 }
-            />
+            >
+                <Suspense>
+                <ShowLet some=rows_height let(size)>
+                    {
+                        (1..=size).map(|i| {
+                            view! {
+                                <option value={i}>{i}</option>
+                            }
+                        }).collect_view()
+                    }
+                </ShowLet>
+                </Suspense>
+            </select>
         </dt>
     }
 }

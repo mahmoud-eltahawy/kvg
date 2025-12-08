@@ -74,12 +74,17 @@ async fn get_cards(reqs: CardsServerProps) -> Result<Vec<Card>, ServerFnError> {
         .from_range(&range)?;
 
     let headers = match title_row_index {
-        Some(i) => iter.nth(Into::<usize>::into(i) - 1),
-        None => iter.next(),
-    }
-    .unwrap_or(Err(DeError::HeaderNotFound(String::from(
-        "Error : first row should contain headers",
-    ))))?;
+        Some(i) => iter
+            .nth(Into::<usize>::into(i) - 1)
+            .unwrap_or(Err(DeError::HeaderNotFound(format!(
+                "Error number {i} should contain headers"
+            ))))?,
+        None => iter
+            .next()
+            .unwrap_or(Err(DeError::HeaderNotFound(String::from(
+                "Error : first row should contain headers",
+            ))))?,
+    };
 
     let mut cards = Vec::new();
     for (i, row) in iter.enumerate() {
