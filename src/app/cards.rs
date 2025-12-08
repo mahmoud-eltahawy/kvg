@@ -58,14 +58,14 @@ pub struct CardsServerProps {
 
 #[server]
 async fn get_cards(reqs: CardsServerProps) -> Result<Vec<Card>, ServerFnError> {
+    use calamine::{Data, DeError, RangeDeserializerBuilder, Reader, Xlsx, open_workbook};
+
     let CardsServerProps {
         title_row_index,
         path,
         sheet,
         columns_indexs,
     } = reqs;
-    use calamine::{Data, DeError, RangeDeserializerBuilder, Reader, Xlsx, open_workbook};
-
     let mut workbook: Xlsx<_> = open_workbook(&path)?;
     let range = workbook.worksheet_range(&sheet)?;
 

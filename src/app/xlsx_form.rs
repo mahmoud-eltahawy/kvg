@@ -35,7 +35,7 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
             <XlsxPath path/>
             <SheetName sheet path/>
             <TitleRowIndex path sheetname=sheet index=title_row_index/>
-            <ColumnsIndexs indexs=columns_indexs/>
+            <ColumnsIndexs indexs=columns_indexs sheetname=sheet path headers_index=title_row_index/>
             <button on:click=on_submit>تمام</button>
         </dl>
     }
@@ -58,27 +58,87 @@ fn CardTitle(title: RwSignal<String>) -> impl IntoView {
     }
 }
 
+#[server]
+async fn get_headers(
+    args: (Option<PathBuf>, String, Option<NonZeroUsize>),
+) -> Result<Vec<String>, ServerFnError> {
+    use calamine::{DeError, RangeDeserializerBuilder, Reader, Xlsx, open_workbook};
+    let (path, sheetname, headers_index) = args;
+    let Some(path) = path else {
+        return Ok(Vec::new());
+    };
+    let mut workbook: Xlsx<_> = open_workbook(&path)?;
+
+    let range = workbook.worksheet_range(&sheetname)?;
+
+    let mut iter = RangeDeserializerBuilder::new()
+        .has_headers(false)
+        .from_range(&range)?;
+
+    let headers: Vec<String> = match headers_index {
+        Some(i) => iter
+            .nth(Into::<usize>::into(i) - 1)
+            .unwrap_or(Err(DeError::HeaderNotFound(format!(
+                "Error number {i} should contain headers"
+            ))))?,
+        None => iter
+            .next()
+            .unwrap_or(Err(DeError::HeaderNotFound(String::from(
+                "Error : first row should contain headers",
+            ))))?,
+    };
+
+    Ok(headers)
+}
+
 #[component]
-fn ColumnsIndexs(indexs: RwSignal<Vec<usize>>) -> impl IntoView {
-    let style = RwSignal::new("");
+fn ColumnsIndexs(
+    indexs: RwSignal<Vec<usize>>,
+    path: RwSignal<Option<PathBuf>>,
+    sheetname: RwSignal<String>,
+    headers_index: RwSignal<Option<NonZeroUsize>>,
+) -> impl IntoView {
+    let headers_res = Resource::new(
+        move || (path.get(), sheetname.get(), headers_index.get()),
+        get_headers,
+    );
+    let headers = move || {
+        headers_res
+            .get()
+            .transpose()
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+            .into_iter()
+            .enumerate()
+            .collect::<Vec<_>>()
+    };
     view! {
         <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">مسلسلات الاعمدة</dd>
         <dt>
-            <input
-                type="text"
-                style=style
-                class="border-2 w-4/6 rounded-lg p-2 text-center"
-                on:input:target=move |ev| {
-                    let value =ev.target().value();
-                    let value = value.split(',').map(|x| x.trim().parse::<usize>()).collect::<Vec<_>>();
-                    if value.iter().any(|x| x.is_err()) {
-                        style.set("color:red");
-                    } else {
-                        indexs.set(value.iter().flatten().cloned().collect());
-                        style.set("");
-                    };
-                }
-            />
+            <dl class="flex gap-4">
+                <Suspense>
+                    <For
+                        each=headers
+                        key=|x| x.1.clone()
+                        let((index,header))
+                    >
+                        <dd>{header}</dd>
+                        <dt>
+                            <input
+                                type="checkbox"
+                                class="border-2 w-4/6 rounded-lg p-2 text-center"
+                                value={index}
+                                on:change:target=move |ev| {
+                                    if ev.target().checked() {
+                                        indexs.write().push(ev.target().value().parse().unwrap());
+                                    };
+                                }
+                            />
+                        </dt>
+                    </For>
+                </Suspense>
+            </dl>
         </dt>
     }
 }
@@ -121,7 +181,6 @@ fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl I
                 on:change:target=move |ev| {
                     let value =ev.target().value();
                     sheet.set( value.trim().to_string());
-                    log!("hello ");
                 }
             >
                 <option>"لا يكن"</option>
@@ -151,7 +210,7 @@ async fn rows_height(args: (Option<PathBuf>, String)) -> Result<usize, ServerFnE
         println!("sheet {sheetname} range is empty");
         return Ok(0);
     };
-    Ok(dbg!(range.height()))
+    Ok(range.height())
 }
 
 #[component]
