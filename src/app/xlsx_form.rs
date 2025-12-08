@@ -1,6 +1,7 @@
 use crate::app::cards::CardsServerProps;
 use leptos::logging::log;
 use leptos::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::num::NonZeroUsize;
 use std::path::PathBuf;
 
@@ -31,9 +32,9 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
     view! {
         <dl>
             <CardTitle title/>
-            <TitleRowIndex index=title_row_index/>
             <XlsxPath path/>
             <SheetName sheet/>
+            <TitleRowIndex index=title_row_index/>
             <ColumnsIndexs indexs=columns_indexs/>
             <button on:click=on_submit>تمام</button>
         </dl>
@@ -136,9 +137,55 @@ fn TitleRowIndex(index: RwSignal<Option<NonZeroUsize>>) -> impl IntoView {
     }
 }
 
+#[derive(Debug, PartialEq, PartialOrd, Serialize, Deserialize, Clone)]
+enum PathExisting {
+    Exists(PathBuf),
+    ParentExists(PathBuf),
+    None,
+}
+
 #[server]
-async fn path_exists(path: PathBuf) -> Result<bool, ServerFnError> {
-    Ok(path.exists())
+async fn path_exists(path: PathBuf) -> Result<PathExisting, ServerFnError> {
+    let res = if path.exists() {
+        PathExisting::Exists(path)
+    } else if path.parent().is_some_and(|x| x.exists()) {
+        PathExisting::ParentExists(path)
+    } else {
+        PathExisting::None
+    };
+    Ok(res)
+}
+
+#[server]
+async fn path_autocomplete(path: PathExisting) -> Result<Vec<PathBuf>, ServerFnError> {
+    match path {
+        PathExisting::Exists(path) => {
+            let mut enteries = tokio::fs::read_dir(&path).await?;
+            let mut paths = Vec::new();
+            while let Some(entry) = enteries.next_entry().await? {
+                paths.push(entry.path());
+            }
+            Ok(paths)
+        }
+        PathExisting::ParentExists(path) => {
+            let parent = path.parent().unwrap();
+            let name = path.file_name().unwrap().to_str().unwrap();
+            let mut enteries = tokio::fs::read_dir(&parent).await?;
+            let mut paths = Vec::new();
+            while let Some(entry) = enteries.next_entry().await? {
+                let epath = entry.path();
+                if epath
+                    .file_name()
+                    .and_then(|x| x.to_str())
+                    .is_some_and(|x| x.starts_with(&name))
+                {
+                    paths.push(epath);
+                }
+            }
+            Ok(paths)
+        }
+        PathExisting::None => Ok(Vec::new()),
+    }
 }
 
 #[component]
@@ -146,11 +193,35 @@ fn XlsxPath(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     let input_path = RwSignal::new(PathBuf::new());
     let style = RwSignal::new("");
 
-    let valid = Resource::new(move || input_path.get(), path_exists);
+    let input_path_exists_res = Resource::new(move || input_path.get(), path_exists);
+    let input_path_exists = move || {
+        input_path_exists_res
+            .get()
+            .transpose()
+            .ok()
+            .flatten()
+            .unwrap_or(PathExisting::None)
+    };
+
+    let autocomplete_paths_res = Resource::new(input_path_exists, path_autocomplete);
+    let autocomplete_paths = move || {
+        autocomplete_paths_res
+            .get()
+            .transpose()
+            .ok()
+            .flatten()
+            .unwrap_or_default()
+    };
+
     Effect::new(move || {
-        let valid = valid.get().transpose().ok().flatten().unwrap_or(false);
-        if valid {
-            path.set(Some(input_path.get_untracked()));
+        let input_path = input_path.get_untracked();
+
+        let is_excel = input_path.extension().is_some_and(|x| {
+            ["xls", "xlsx", "xlsm", "xlsb", "xla", "xlam"].contains(&x.to_str().unwrap_or(""))
+        });
+
+        if matches!(input_path_exists(), PathExisting::Exists(_)) && is_excel {
+            path.set(Some(input_path));
             style.set("");
         } else {
             style.set("color:red;");
@@ -164,6 +235,7 @@ fn XlsxPath(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                 dir="ltr"
                 type="text"
                 class="border-2"
+                list="paths"
                 style=style
                 on:input:target=move |ev| {
                     let value =ev.target().value().parse::<PathBuf>();
@@ -171,6 +243,17 @@ fn XlsxPath(path: RwSignal<Option<PathBuf>>) -> impl IntoView {
                     input_path.set(value);
                 }
             />
+            <datalist id="paths">
+                <Suspense>
+                <For
+                    each=autocomplete_paths
+                    key=|x| x.clone()
+                    let(path)
+                >
+                    <option value={path.display().to_string()}/>
+                </For>
+                </Suspense>
+            </datalist>
         </dt>
     }
 }
