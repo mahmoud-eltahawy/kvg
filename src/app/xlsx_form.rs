@@ -158,7 +158,7 @@ fn ColumnsIndexs(
         <dt>
             <dl
                 style=style
-                class="flex gap-4 place-content-center"
+                class="flex flex-wrap gap-4 place-content-center"
             >
                 <Suspense>
                     <For
