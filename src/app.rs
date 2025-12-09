@@ -57,7 +57,7 @@ pub fn App() -> impl IntoView {
 #[component]
 fn HomePage() -> impl IntoView {
     let csp = RwSignal::new(None::<CardsServerProps>);
-    let title = RwSignal::new("كارت ضاحية".to_string());
+    let title = RwSignal::new(String::new());
 
     let xlsx_form = move || {
         view! {

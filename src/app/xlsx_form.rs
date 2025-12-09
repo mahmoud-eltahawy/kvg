@@ -7,14 +7,14 @@ use std::path::PathBuf;
 
 #[component]
 pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>) -> impl IntoView {
-    let title_row_index = RwSignal::new(NonZeroUsize::new(1));
-    let sheet = RwSignal::<String>::new(String::new());
+    let title_row_index = RwSignal::new(None);
+    let sheetname = RwSignal::<String>::new(String::new());
     let path = RwSignal::<Option<PathBuf>>::new(None);
     let columns_indexs = RwSignal::<Vec<usize>>::new(Vec::new());
     let on_submit = move |_| {
         if let (Some(path), sheet, columns_indexs, false) = (
             path.get(),
-            sheet.get(),
+            sheetname.get(),
             columns_indexs.get(),
             title.read().is_empty(),
         ) && !sheet.is_empty()
@@ -29,25 +29,58 @@ pub fn XlsxForm(title: RwSignal<String>, csp: RwSignal<Option<CardsServerProps>>
             csp.set(res);
         };
     };
+    let disabled = move || {
+        path.read().is_none()
+            || sheetname.read().is_empty()
+            || columns_indexs.read().is_empty()
+            || title.read().is_empty()
+    };
+    let submit_title = move || {
+        if disabled() {
+            "افندم!"
+        } else {
+            "تمام"
+        }
+    };
+    let submit_style = move || {
+        if disabled() {
+            "color:red;"
+        } else {
+            "color:green;"
+        }
+    };
     view! {
         <dl class="border-sky-500 border-5 rounded-xl p-2 m-2 text-xl text-center">
             <CardTitle title/>
             <XlsxPath path/>
-            <SheetName sheet path/>
-            <TitleRowIndex path sheetname=sheet index=title_row_index/>
-            <ColumnsIndexs indexs=columns_indexs sheetname=sheet path headers_index=title_row_index/>
-            <button on:click=on_submit>تمام</button>
+            <SheetName sheetname path/>
+            <TitleRowIndex path sheetname=sheetname index=title_row_index/>
+            <ColumnsIndexs indexs=columns_indexs sheetname=sheetname path headers_index=title_row_index/>
+            <button
+                disabled=disabled
+                on:click=on_submit
+                class="text-3xl font-bold border-2 rounded-xl p-4 hover:cursor-pointer disabled:cursor-wait"
+                style=submit_style
+            >{submit_title}</button>
         </dl>
     }
 }
 
 #[component]
 fn CardTitle(title: RwSignal<String>) -> impl IntoView {
+    let style = move || {
+        if title.read().is_empty() {
+            "color:red;"
+        } else {
+            ""
+        }
+    };
     view! {
         <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">عنوان الكارت</dd>
         <dt>
             <input
                 type="text"
+                style=style
                 class="border-2 w-3/6 rounded-lg p-2 text-center"
                 on:input:target=move |ev| {
                     let value =ev.target().value();
@@ -113,10 +146,20 @@ fn ColumnsIndexs(
             .enumerate()
             .collect::<Vec<_>>()
     };
+    let style = move || {
+        if indexs.read().is_empty() {
+            "color:red;"
+        } else {
+            ""
+        }
+    };
     view! {
         <dd class="text-2xl m-2 p-2 font-bold border-l-2 border-r-2 rounded-xl">الاعمدة</dd>
         <dt>
-            <dl class="flex gap-4 place-content-center">
+            <dl
+                style=style
+                class="flex gap-4 place-content-center"
+            >
                 <Suspense>
                     <For
                         each=headers
@@ -133,6 +176,8 @@ fn ColumnsIndexs(
                                     on:change:target=move |ev| {
                                         if ev.target().checked() {
                                             indexs.write().push(ev.target().value().parse().unwrap());
+                                        } else {
+                                            indexs.write().retain(|x| (*x) != ev.target().value().parse::<usize>().unwrap());
                                         };
                                     }
                                 />
@@ -156,7 +201,7 @@ async fn sheets_names(path: Option<PathBuf>) -> Result<Vec<String>, ServerFnErro
 }
 
 #[component]
-fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl IntoView {
+fn SheetName(sheetname: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl IntoView {
     let sheets_names_res = Resource::new(move || path.get(), sheets_names);
     let style = move || {
         if path.read().is_none() {
@@ -182,7 +227,7 @@ fn SheetName(sheet: RwSignal<String>, path: RwSignal<Option<PathBuf>>) -> impl I
                 class="border-2 w-3/6 rounded-lg p-2 text-center"
                 on:change:target=move |ev| {
                     let value =ev.target().value();
-                    sheet.set( value.trim().to_string());
+                    sheetname.set( value.trim().to_string());
                 }
             >
                 <option>"لا يكن"</option>
@@ -221,9 +266,8 @@ fn TitleRowIndex(
     path: RwSignal<Option<PathBuf>>,
     sheetname: RwSignal<String>,
 ) -> impl IntoView {
-    let valid = RwSignal::new(true);
     let style = move || {
-        if valid.get() {
+        if index.read().is_some() {
             return "";
         };
         "color:red;"
@@ -240,26 +284,25 @@ fn TitleRowIndex(
                     let value =ev.target().value().parse::<NonZeroUsize>();
                     match value {
                         Ok(value) => {
-                             valid.set(true);
-                             index.set(Some(value))
+                            index.set(Some(value));
                         },
                         Err(err) => {
-                            valid.set(false);
+                            index.set(None);
                             log!("Error : {err:#?}");
                         },
                     };
                 }
             >
                 <Suspense>
-                <ShowLet some=rows_height let(size)>
+                    <ShowLet some=rows_height let(size)>
                     {
-                        (1..=size).map(|i| {
+                        (1..=size).flat_map(NonZeroUsize::new).map(|i| {
                             view! {
-                                <option value={i}>{i}</option>
+                                <option value={i} selected=move || index.read().is_some_and(|x| x == i)>{i}</option>
                             }
                         }).collect_view()
                     }
-                </ShowLet>
+                    </ShowLet>
                 </Suspense>
             </select>
         </dt>
