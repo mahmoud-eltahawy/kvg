@@ -341,7 +341,7 @@ async fn path_autocomplete(path: PathExisting) -> Result<Vec<PathBuf>, ServerFnE
         }
         PathExisting::ParentExists(path) => {
             let parent = path.parent().unwrap();
-            let name = path.file_name().unwrap().to_str().unwrap();
+            let name = path.file_name().unwrap().to_str().unwrap().to_lowercase();
             let mut enteries = tokio::fs::read_dir(&parent).await?;
             let mut paths = Vec::new();
             while let Some(entry) = enteries.next_entry().await? {
@@ -349,7 +349,7 @@ async fn path_autocomplete(path: PathExisting) -> Result<Vec<PathBuf>, ServerFnE
                 if epath
                     .file_name()
                     .and_then(|x| x.to_str())
-                    .is_some_and(|x| x.starts_with(&name))
+                    .is_some_and(|x| x.to_lowercase().starts_with(&name))
                 {
                     paths.push(epath);
                 }

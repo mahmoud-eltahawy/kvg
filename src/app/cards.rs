@@ -9,14 +9,14 @@ pub fn Cards(title: String, csp: CardsServerProps) -> impl IntoView {
 
     view! {
         <Transition>
-        <div class="grid grid-cols-3 gap-5">
+        <div class="grid grid-cols-3 gap-1">
             <For
                 each=cardsfn
                 key=|x| x.row_index
                 let(Card { row_index:_, kv })
                 >
-                    <div class="border-sky-500 border-5 rounded-xl p-2 m-2 text-xl text-center">
-                        <h2 class="font-bold">{title.clone()}</h2>
+                    <div class="break-inside-avoid border-sky-500 border-5 rounded-xl p-1 m-1 text-xl text-center">
+                        <h2 class="font-bold font-xl underline">{title.clone()}</h2>
                         <dl class="divide-y divide-white/10">
                             <For
                                 each=move || kv.clone()
@@ -24,8 +24,8 @@ pub fn Cards(title: String, csp: CardsServerProps) -> impl IntoView {
                                 let(Kv { key, value })
                             >
                                  <div class="flex">
-                                    <dt class="px-3 border-l-2 border-dotted">{key}</dt>
-                                    <dd class="grow">{value}</dd>
+                                    <dt class="text-sm px-2 border-l-2 border-dotted font-bold">{key}</dt>
+                                    <dd class="grow text-sm">{value}</dd>
                                 </div>
                             </For>
                         </dl>
